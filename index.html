@@ -30,9 +30,10 @@
         const loginDiv = document.getElementById('loginDiv');
         const chatDiv = document.getElementById('chatDiv');
         const settingsDiv = document.getElementById('settingsDiv');
-        const emailInput = document.getElementById('email');
+        const nicknameInput = document.getElementById('nickname');
         const passwordInput = document.getElementById('password');
-        const usernameInput = document.getElementById('username');
+        const loginNicknameInput = document.getElementById('loginNickname');
+        const loginPasswordInput = document.getElementById('loginPassword');
         const messageInput = document.getElementById('messageInput');
         const messagesDiv = document.getElementById('messages');
         const currentUserSpan = document.getElementById('currentUser');
@@ -53,22 +54,32 @@
         let allUsers = {};
         let dndMode = localStorage.getItem('maxfriend_dnd') === 'true';
 
+        // Генерация email из ника (для Firebase)
+        function generateEmail(nickname) {
+            return nickname.toLowerCase().replace(/[^a-z0-9]/g, '') + '@maxfriend.local';
+        }
+
         window.register = () => {
-            const email = emailInput.value;
+            const nickname = nicknameInput.value.trim();
             const password = passwordInput.value;
-            const username = usernameInput.value;
-            if (!username) { alert("Введите никнейм"); return; }
+            if (!nickname) { alert("Введите никнейм"); return; }
+            if (password.length < 6) { alert("Пароль должен быть не менее 6 символов"); return; }
+            
+            const email = generateEmail(nickname);
             createUserWithEmailAndPassword(auth, email, password)
                 .then((userCredential) => {
-                    set(ref(db, `users/${userCredential.user.uid}`), { email, username });
+                    set(ref(db, `users/${userCredential.user.uid}`), { email, username: nickname });
                     alert("Регистрация успешна!");
                 })
                 .catch((error) => alert("Ошибка: " + error.message));
         };
 
         window.login = () => {
-            const email = emailInput.value;
-            const password = passwordInput.value;
+            const nickname = loginNicknameInput.value.trim();
+            const password = loginPasswordInput.value;
+            if (!nickname) { alert("Введите никнейм"); return; }
+            
+            const email = generateEmail(nickname);
             signInWithEmailAndPassword(auth, email, password)
                 .catch((error) => alert("Ошибка входа: " + error.message));
         };
@@ -173,7 +184,7 @@
             if (user) {
                 currentUserEmail = user.email;
                 const snapshot = await get(ref(db, `users/${user.uid}`));
-                currentUsername = snapshot.exists() ? snapshot.val().username : user.email;
+                currentUsername = snapshot.exists() ? snapshot.val().username : user.email.split('@')[0];
                 currentUserSpan.innerText = currentUsername;
                 loginDiv.style.display = 'none';
                 showChat();
@@ -554,6 +565,16 @@
             text-align: center;
             padding: 20px;
         }
+        
+        .login-row {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        body.theme-dark .login-row {
+            border-top-color: #444;
+        }
     </style>
 </head>
 <body class="theme-light">
@@ -573,12 +594,17 @@
         </div>
 
         <div id="loginDiv" class="login-container">
-            <h2>🔐 Вход / Регистрация</h2>
-            <input type="text" id="username" placeholder="Никнейм">
-            <input type="email" id="email" placeholder="Email">
-            <input type="password" id="password" placeholder="Пароль">
+            <h2>📝 Регистрация</h2>
+            <input type="text" id="nickname" placeholder="Никнейм">
+            <input type="password" id="password" placeholder="Пароль (мин. 6 символов)">
             <button onclick="register()">📝 Зарегистрироваться</button>
-            <button onclick="login()">🔓 Войти</button>
+            
+            <div class="login-row">
+                <h2>🔐 Вход</h2>
+                <input type="text" id="loginNickname" placeholder="Никнейм">
+                <input type="password" id="loginPassword" placeholder="Пароль">
+                <button onclick="login()">🔓 Войти</button>
+            </div>
         </div>
 
         <div id="chatDiv" style="display: none;">
