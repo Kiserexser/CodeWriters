@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MAX FRIEND</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='80' fill='%234a90e2'>👥</text></svg>">
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
@@ -45,12 +46,16 @@
         const settingsTheme = document.getElementById('settingsTheme');
         const settingsNotifications = document.getElementById('settingsNotifications');
         const settingsSound = document.getElementById('settingsSound');
+        const settingsFontSize = document.getElementById('settingsFontSize');
+        const settingsDnd = document.getElementById('settingsDnd');
+        const settingsLanguage = document.getElementById('settingsLanguage');
 
         let currentUserEmail = null;
         let currentUsername = null;
         let currentFriend = null;
         let allUsers = {};
         let savedAccounts = JSON.parse(localStorage.getItem('maxfriend_accounts') || '[]');
+        let dndMode = localStorage.getItem('maxfriend_dnd') === 'true';
 
         function saveAccount(email, password, username) {
             if (!savedAccounts.find(a => a.email === email)) {
@@ -110,8 +115,10 @@
         };
 
         window.logout = () => signOut(auth);
+        
         window.sendMessage = () => {
             if (!currentFriend) { alert("Выберите друга"); return; }
+            if (dndMode) { alert("🔕 Режим 'Не беспокоить' включен. Сообщение не отправлено."); return; }
             const text = messageInput.value.trim();
             if (!text) return;
             const chatId = [currentUserEmail, currentFriend.email].sort().join('_');
@@ -146,20 +153,37 @@
             const theme = settingsTheme.value;
             const notifications = settingsNotifications.checked;
             const sound = settingsSound.checked;
+            const fontSize = settingsFontSize.value;
+            const language = settingsLanguage.value;
+            
             localStorage.setItem('maxfriend_theme', theme);
             localStorage.setItem('maxfriend_notifications', notifications);
             localStorage.setItem('maxfriend_sound', sound);
+            localStorage.setItem('maxfriend_fontsize', fontSize);
+            localStorage.setItem('maxfriend_language', language);
+            
             document.body.className = theme === 'light' ? 'theme-light' : 'theme-dark';
+            document.body.style.fontSize = fontSize === 'small' ? '12px' : fontSize === 'large' ? '16px' : '14px';
+            
             alert('Настройки сохранены');
+        };
+        
+        window.toggleDnd = () => {
+            dndMode = !dndMode;
+            localStorage.setItem('maxfriend_dnd', dndMode);
+            const dndBtn = document.getElementById('dndStatus');
+            if (dndBtn) dndBtn.textContent = dndMode ? '🔕 Не беспокоить (вкл)' : '🔔 Не беспокоить (выкл)';
+            alert(dndMode ? 'Режим "Не беспокоить" включен' : 'Режим "Не беспокоить" выключен');
         };
 
         function displayMessage(msg) {
+            if (dndMode) return;
             const msgDiv = document.createElement('div');
             msgDiv.className = msg.sender === currentUserEmail ? 'message-sent' : 'message-received';
             msgDiv.innerHTML = `<div class="message-sender">${msg.senderName}</div><div class="message-text">${msg.text}</div><div class="message-time">${new Date(msg.timestamp).toLocaleTimeString()}</div>`;
             messagesDiv.appendChild(msgDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            if (localStorage.getItem('maxfriend_sound') === 'true') {
+            if (localStorage.getItem('maxfriend_sound') === 'true' && !dndMode) {
                 new Audio('https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3').play();
             }
         }
@@ -217,30 +241,41 @@
         messageInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
 
         const savedTheme = localStorage.getItem('maxfriend_theme');
+        const savedFontSize = localStorage.getItem('maxfriend_fontsize');
         if (savedTheme) document.body.className = savedTheme === 'light' ? 'theme-light' : 'theme-dark';
         else document.body.className = 'theme-light';
+        if (savedFontSize) document.body.style.fontSize = savedFontSize === 'small' ? '12px' : savedFontSize === 'large' ? '16px' : '14px';
+        
+        dndMode = localStorage.getItem('maxfriend_dnd') === 'true';
     </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
             font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #f5f5f5;
+            background: #e8eef2;
             padding: 20px;
             min-height: 100vh;
             transition: background 0.3s;
+            font-size: 14px;
         }
         
         body.theme-dark { background: #1a1a1a; }
-        body.theme-dark .container { background: #2d2d2d; }
         
+        /* Оконтовка всех окон */
         .container {
             max-width: 1300px;
             margin: 0 auto;
             background: #ffffff;
             border-radius: 24px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
             overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.08);
+        }
+        
+        body.theme-dark .container {
+            background: #2d2d2d;
+            border: 1px solid rgba(255,255,255,0.08);
         }
         
         .header {
@@ -268,14 +303,13 @@
         }
         
         .logo span { color: #4a90e2; }
-        
         body.theme-dark .logo { color: #fff; }
         
         .menu-buttons { display: flex; gap: 10px; }
         
         .menu-btn {
             background: #f0f0f0;
-            border: none;
+            border: 1px solid #ddd;
             color: #333;
             padding: 6px 14px;
             border-radius: 20px;
@@ -284,10 +318,11 @@
             transition: all 0.2s;
         }
         
-        .menu-btn:hover { background: #e0e0e0; }
+        .menu-btn:hover { background: #e0e0e0; border-color: #ccc; }
         
         body.theme-dark .menu-btn {
             background: #3d3d3d;
+            border-color: #555;
             color: #e0e0e0;
         }
         
@@ -353,17 +388,21 @@
             margin: 4px 0;
             background: #fff;
             border-radius: 12px;
+            border: 1px solid #e8e8e8;
             transition: all 0.2s;
         }
         
-        body.theme-dark .friend-item { background: #3d3d3d; }
+        body.theme-dark .friend-item {
+            background: #3d3d3d;
+            border-color: #555;
+        }
         
         .friend-item span { color: #333; font-size: 14px; }
         body.theme-dark .friend-item span { color: #ddd; }
         
         .friend-item button {
             background: #e8e8e8;
-            border: none;
+            border: 1px solid #ddd;
             color: #4a90e2;
             padding: 4px 12px;
             border-radius: 16px;
@@ -371,7 +410,7 @@
             font-size: 12px;
         }
         
-        body.theme-dark .friend-item button { background: #555; }
+        body.theme-dark .friend-item button { background: #555; border-color: #666; }
         
         .chat-panel { flex: 1; display: flex; flex-direction: column; }
         
@@ -408,6 +447,7 @@
             border-radius: 18px 18px 4px 18px;
             padding: 8px 14px;
             max-width: 70%;
+            border: 1px solid #3a80d2;
         }
         
         .message-received {
@@ -417,9 +457,10 @@
             border-radius: 18px 18px 18px 4px;
             padding: 8px 14px;
             max-width: 70%;
+            border: 1px solid #e0e0e0;
         }
         
-        body.theme-dark .message-received { background: #3d3d3d; color: #ddd; }
+        body.theme-dark .message-received { background: #3d3d3d; color: #ddd; border-color: #555; }
         
         .message-sender { font-size: 11px; opacity: 0.8; margin-bottom: 4px; }
         .message-text { font-size: 14px; word-break: break-word; }
@@ -470,13 +511,15 @@
             max-width: 450px;
             margin: 40px auto;
             text-align: center;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e0e0e0;
         }
         
         body.theme-dark .login-container,
         body.theme-dark .settings-container,
         body.theme-dark .accounts-container {
             background: #2d2d2d;
+            border: 1px solid #444;
         }
         
         h2 { color: #333; margin-bottom: 24px; font-weight: 600; }
@@ -487,7 +530,7 @@
         .settings-container input {
             width: 100%;
             background: #f5f5f5;
-            border: 1px solid #e0e0e0;
+            border: 1px solid #ddd;
             padding: 12px;
             margin: 8px 0;
             border-radius: 12px;
@@ -519,11 +562,13 @@
         .back-btn {
             background: #e0e0e0 !important;
             color: #333 !important;
+            border: 1px solid #ccc !important;
         }
         
         body.theme-dark .back-btn {
             background: #555 !important;
             color: #ddd !important;
+            border: 1px solid #666 !important;
         }
         
         .setting-item {
@@ -534,8 +579,13 @@
             align-items: center;
         }
         
-        .setting-item label { color: #333; }
+        .setting-item label { color: #333; font-weight: 500; }
         body.theme-dark .setting-item label { color: #ddd; }
+        
+        .dnd-btn {
+            background: #ff4d4d !important;
+            margin-top: 10px !important;
+        }
         
         .account-item {
             display: flex;
@@ -545,9 +595,10 @@
             background: #f5f5f5;
             border-radius: 12px;
             margin: 8px 0;
+            border: 1px solid #e0e0e0;
         }
         
-        body.theme-dark .account-item { background: #3d3d3d; }
+        body.theme-dark .account-item { background: #3d3d3d; border-color: #555; }
         
         .account-item span { color: #333; }
         body.theme-dark .account-item span { color: #ddd; }
@@ -612,10 +663,38 @@
 
         <div id="settingsDiv" style="display: none;" class="settings-container">
             <h2>⚙️ Настройки</h2>
-            <div class="setting-item"><label>Тема:</label><select id="settingsTheme"><option value="light">☀️ Светлая</option><option value="dark">🌙 Тёмная</option></select></div>
-            <div class="setting-item"><label>Уведомления:</label><input type="checkbox" id="settingsNotifications" checked></div>
-            <div class="setting-item"><label>Звук сообщений:</label><input type="checkbox" id="settingsSound" checked></div>
+            <div class="setting-item">
+                <label>🌓 Тема:</label>
+                <select id="settingsTheme">
+                    <option value="light">☀️ Светлая</option>
+                    <option value="dark">🌙 Тёмная</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>🔔 Уведомления:</label>
+                <input type="checkbox" id="settingsNotifications" checked>
+            </div>
+            <div class="setting-item">
+                <label>🔊 Звук сообщений:</label>
+                <input type="checkbox" id="settingsSound" checked>
+            </div>
+            <div class="setting-item">
+                <label>📏 Размер шрифта:</label>
+                <select id="settingsFontSize">
+                    <option value="small">Маленький</option>
+                    <option value="medium" selected>Средний</option>
+                    <option value="large">Большой</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>🌐 Язык:</label>
+                <select id="settingsLanguage">
+                    <option value="ru">Русский</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
             <button onclick="applySettings()">💾 Сохранить</button>
+            <button class="dnd-btn" id="dndStatus" onclick="toggleDnd()">🔔 Не беспокоить (выкл)</button>
             <button class="back-btn" onclick="closeSettings()">← Назад</button>
         </div>
 
