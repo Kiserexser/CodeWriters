@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ModCodX Messenger</title>
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+        import { getDatabase, ref, push, onChildAdded, query, limitToLast, orderByChild } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
+
+        // ТВОЙ firebaseConfig (скопируй свой)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCLHOrkSTiON5GwVBg4uSWZxAZ1ChRlQQI",
+            authDomain: "massage-9d9e0.firebaseapp.com",
+            databaseURL: "https://massage-9d9e0-default-rtdb.firebaseio.com",
+            projectId: "massage-9d9e0",
+            storageBucket: "massage-9d9e0.firebasestorage.app",
+            messagingSenderId: "863054107330",
+            appId: "1:863054107330:web:8a588ba2e42e5c82ff615b",
+            measurementId: "G-9QQC0RPCCG"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        // DOM элементы
+        const loginDiv = document.getElementById('loginDiv');
+        const chatDiv = document.getElementById('chatDiv');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const usernameInput = document.getElementById('username');
+        const messageInput = document.getElementById('messageInput');
+        const messagesDiv = document.getElementById('messages');
+        const currentUserSpan = document.getElementById('currentUser');
+        const searchInput = document.getElementById('searchInput');
+        const friendsList = document.getElementById('friendsList');
+
+        let currentUserEmail = null;
+        let currentUsername = null;
+        let currentFriend = null;
+        let allUsers = {};
+
+        // Регистрация
+        window.register = () => {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            const username = usernameInput.value;
+            if (!username) {
+                alert("Введите никнейм");
+                return;
+            }
+            createUserWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    // Сохраняем никнейм в localStorage
+                    localStorage.setItem(userCredential.user.uid, username);
+                    alert("Регистрация успешна!");
+                })
+                .catch((error) => {
+                    alert("Ошибка: " + error.message);
+                });
+        };
+
+        // Вход
+        window.login = () => {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            signInWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    currentUserEmail = userCredential.user.email;
+                    currentUsername = localStorage.getItem(userCredential.user.uid) || email;
+                    currentUserSpan.innerText = currentUsername;
+                    loginDiv.style.display = 'none';
+                    chatDiv.style.display = 'block';
+                    loadMessages();
+                    loadAllUsers();
+                })
+                .catch((error) => {
+                    alert("Ошибка входа: " + error.message);
+                });
+        };
+
+        // Выход
+        window.logout = () => {
+            signOut(auth).then(() => {
+                loginDiv.style.display = 'block';
+                chatDiv.style.display = 'none';
+                currentFriend = null;
+                messagesDiv.innerHTML = '';
+                updateFriendListDisplay();
+            });
+        };
+
+        // Загрузка всех пользователей
+        function loadAllUsers() {
+            const usersRef = ref(db, 'users');
+            onChildAdded(usersRef, (data) => {
+                const user = data.val();
+                if (user.email !== currentUserEmail) {
+                    allUsers[user.email] = user.username;
+                    updateFriendListDisplay();
+                }
+            });
+        }
+
+        // Обновление списка друзей
+        function updateFriendListDisplay() {
+            const searchTerm = searchInput.value.toLowerCase();
+            friendsList.innerHTML = '';
+            for (const [email, username] of Object.entries(allUsers)) {
+                if (username.toLowerCase().includes(searchTerm)) {
+                    const friendDiv = document.createElement('div');
+                    friendDiv.className = 'friend-item';
+                    friendDiv.innerHTML = `
+                        <span>${username}</span>
+                        <button onclick="selectFriend('${email}', '${username}')">💬</button>
+                    `;
+                    friendsList.appendChild(friendDiv);
+                }
+            }
+        }
+
+        // Поиск друзей
+        window.searchFriends = () => {
+            updateFriendListDisplay();
+        };
+
+        // Выбор друга для чата
+        window.selectFriend = (email, username) => {
+            currentFriend = { email, username };
+            messagesDiv.innerHTML = '';
+            loadMessagesWithFriend();
+        };
+
+        // Загрузка сообщений с выбранным другом
+        function loadMessagesWithFriend() {
+            if (!currentFriend) return;
+            const chatId = [currentUserEmail, currentFriend.email].sort().join('_');
+            const messagesRef = query(ref(db, `messages/${chatId}`), orderByChild('timestamp'), limitToLast(50));
+            onChildAdded(messagesRef, (data) => {
+                const msg = data.val();
+                displayMessage(msg);
+            });
+        }
+
+        function loadMessages() {
+            // Ждём выбора друга
+        }
+
+        function displayMessage(msg) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = msg.sender === currentUserEmail ? 'message-sent' : 'message-received';
+            msgDiv.innerHTML = `
+                <div class="message-sender">${msg.senderName}</div>
+                <div class="message-text">${msg.text}</div>
+                <div class="message-time">${new Date(msg.timestamp).toLocaleTimeString()}</div>
+            `;
+            messagesDiv.appendChild(msgDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Отправка сообщения
+        window.sendMessage = () => {
+            if (!currentFriend) {
+                alert("Выберите друга из списка");
+                return;
+            }
+            const text = messageInput.value.trim();
+            if (!text) return;
+            
+            const chatId = [currentUserEmail, currentFriend.email].sort().join('_');
+            const messagesRef = ref(db, `messages/${chatId}`);
+            push(messagesRef, {
+                sender: currentUserEmail,
+                senderName: currentUsername,
+                text: text,
+                timestamp: Date.now()
+            });
+            messageInput.value = '';
+        };
+
+        // Нажатие Enter для отправки
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Сохранение пользователя в БД при регистрации
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                const username = localStorage.getItem(user.uid);
+                if (username) {
+                    const userRef = ref(db, `users/${user.uid}`);
+                    set(userRef, { email: user.email, username: username });
+                }
+            }
+        });
+
+        // Импорт set для сохранения пользователя
+        import { set, get } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
+        window.set = set;
+        window.get = get;
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            font-family: 'Segoe UI', 'Consolas', monospace;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: #141414;
+            padding: 16px 20px;
+            border-bottom: 1px solid #2a2a2a;
+            border-radius: 16px 16px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .logo span {
+            color: #4ec9b0;
+        }
+
+        .main-content {
+            display: flex;
+            background: #0d0d0d;
+            border-radius: 0 0 16px 16px;
+            overflow: hidden;
+            min-height: 600px;
+        }
+
+        /* Список друзей */
+        .friends-panel {
+            width: 280px;
+            background: #0a0a0a;
+            border-right: 1px solid #2a2a2a;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .friends-header {
+            padding: 16px;
+            border-bottom: 1px solid #2a2a2a;
+        }
+
+        .friends-header input {
+            width: 100%;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            padding: 8px 12px;
+            border-radius: 8px;
+            color: #fff;
+            font-family: monospace;
+        }
+
+        .friends-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .friend-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            margin: 4px 0;
+            background: #141414;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .friend-item:hover {
+            background: #1e1e1e;
+            border-left: 3px solid #4ec9b0;
+        }
+
+        .friend-item span {
+            color: #ddd;
+            font-size: 13px;
+        }
+
+        .friend-item button {
+            background: #1e1e1e;
+            border: 1px solid #3a3a3a;
+            color: #4ec9b0;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .friend-item button:hover {
+            background: #2a2a2a;
+            border-color: #4ec9b0;
+        }
+
+        /* Чат */
+        .chat-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            padding: 16px;
+            border-bottom: 1px solid #2a2a2a;
+            background: #0a0a0a;
+        }
+
+        .chat-header h3 {
+            color: #4ec9b0;
+            font-size: 16px;
+        }
+
+        .messages-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .message-sent {
+            align-self: flex-end;
+            background: #1a4a1a;
+            border-radius: 12px 12px 4px 12px;
+            padding: 8px 12px;
+            max-width: 70%;
+        }
+
+        .message-received {
+            align-self: flex-start;
+            background: #2a2a2a;
+            border-radius: 12px 12px 12px 4px;
+            padding: 8px 12px;
+            max-width: 70%;
+        }
+
+        .message-sender {
+            font-size: 10px;
+            color: #4ec9b0;
+            margin-bottom: 4px;
+        }
+
+        .message-text {
+            font-size: 13px;
+            color: #fff;
+            word-break: break-word;
+        }
+
+        .message-time {
+            font-size: 9px;
+            color: #888;
+            margin-top: 4px;
+            text-align: right;
+        }
+
+        .input-area {
+            padding: 16px;
+            border-top: 1px solid #2a2a2a;
+            display: flex;
+            gap: 12px;
+        }
+
+        .input-area input {
+            flex: 1;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            padding: 10px 14px;
+            border-radius: 24px;
+            color: #fff;
+            font-family: monospace;
+        }
+
+        .input-area button {
+            background: #1e1e1e;
+            border: 1px solid #4ec9b0;
+            color: #4ec9b0;
+            padding: 8px 20px;
+            border-radius: 24px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .input-area button:hover {
+            background: #2a4a2a;
+        }
+
+        /* Логин форма */
+        .login-container {
+            background: #0d0d0d;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 400px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .login-container h2 {
+            color: #4ec9b0;
+            margin-bottom: 24px;
+        }
+
+        .login-container input {
+            width: 100%;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            color: #fff;
+            font-family: monospace;
+        }
+
+        .login-container button {
+            width: 100%;
+            background: #1e1e1e;
+            border: 1px solid #4ec9b0;
+            color: #4ec9b0;
+            padding: 10px;
+            margin-top: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-logout {
+            background: #1e1e1e;
+            border: 1px solid #ff5555;
+            color: #ff5555;
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        .current-user {
+            color: #4ec9b0;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">Mod<span>Cod</span>X Messenger</div>
+            <div id="userInfo" style="display: flex; gap: 15px; align-items: center;">
+                <span class="current-user" id="currentUser"></span>
+                <button class="btn-logout" onclick="logout()" style="display: none;" id="logoutBtn">Выход</button>
+            </div>
+        </div>
+
+        <div id="loginDiv" class="login-container">
+            <h2>🔐 Вход / Регистрация</h2>
+            <input type="text" id="username" placeholder="Никнейм">
+            <input type="email" id="email" placeholder="Email">
+            <input type="password" id="password" placeholder="Пароль">
+            <button onclick="register()">📝 Зарегистрироваться</button>
+            <button onclick="login()">🔓 Войти</button>
+        </div>
+
+        <div id="chatDiv" style="display: none;">
+            <div class="main-content">
+                <div class="friends-panel">
+                    <div class="friends-header">
+                        <input type="text" id="searchInput" placeholder="🔍 Поиск друзей..." onkeyup="searchFriends()">
+                    </div>
+                    <div class="friends-list" id="friendsList">
+                        <div style="color: #555; text-align: center; padding: 20px;">Загрузка...</div>
+                    </div>
+                </div>
+                <div class="chat-panel">
+                    <div class="chat-header">
+                        <h3 id="chatFriendName">💬 Выберите друга</h3>
+                    </div>
+                    <div class="messages-area" id="messages">
+                        <div style="color: #555; text-align: center; padding: 20px;">Выберите друга для начала чата</div>
+                    </div>
+                    <div class="input-area">
+                        <input type="text" id="messageInput" placeholder="Введите сообщение..." disabled>
+                        <button id="sendBtn" onclick="sendMessage()" disabled>📤 Отправить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Активируем поля при выборе друга
+        window.selectFriend = (email, username) => {
+            currentFriend = { email, username };
+            document.getElementById('chatFriendName').innerHTML = `💬 Чат с ${username}`;
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            messagesDiv.innerHTML = '';
+            const chatId = [currentUserEmail, currentFriend.email].sort().join('_');
+            const messagesRef = query(ref(db, `messages/${chatId}`), orderByChild('timestamp'), limitToLast(50));
+            onChildAdded(messagesRef, (data) => {
+                const msg = data.val();
+                displayMessage(msg);
+            });
+        };
+    </script>
+</body>
+</html>
