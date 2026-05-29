@@ -30,7 +30,6 @@
         const loginDiv = document.getElementById('loginDiv');
         const chatDiv = document.getElementById('chatDiv');
         const settingsDiv = document.getElementById('settingsDiv');
-        const accountsDiv = document.getElementById('accountsDiv');
         const emailInput = document.getElementById('email');
         const passwordInput = document.getElementById('password');
         const usernameInput = document.getElementById('username');
@@ -42,7 +41,6 @@
         const logoutBtn = document.getElementById('logoutBtn');
         const chatFriendName = document.getElementById('chatFriendName');
         const sendBtn = document.getElementById('sendBtn');
-        const accountsListDiv = document.getElementById('accountsList');
         const settingsTheme = document.getElementById('settingsTheme');
         const settingsNotifications = document.getElementById('settingsNotifications');
         const settingsSound = document.getElementById('settingsSound');
@@ -53,43 +51,7 @@
         let currentUsername = null;
         let currentFriend = null;
         let allUsers = {};
-        let savedAccounts = JSON.parse(localStorage.getItem('maxfriend_accounts') || '[]');
         let dndMode = localStorage.getItem('maxfriend_dnd') === 'true';
-
-        function saveAccount(email, password, username) {
-            if (!savedAccounts.find(a => a.email === email)) {
-                savedAccounts.push({ email, password, username });
-                if (savedAccounts.length > 3) savedAccounts.shift();
-                localStorage.setItem('maxfriend_accounts', JSON.stringify(savedAccounts));
-                updateAccountsList();
-            }
-        }
-
-        function updateAccountsList() {
-            accountsListDiv.innerHTML = '';
-            savedAccounts.forEach(acc => {
-                const div = document.createElement('div');
-                div.className = 'account-item';
-                div.innerHTML = `
-                    <span>${acc.username}</span>
-                    <button class="switch-account-btn" data-email="${acc.email}" data-pass="${acc.password}">🔄 Переключить</button>
-                `;
-                accountsListDiv.appendChild(div);
-            });
-            document.querySelectorAll('.switch-account-btn').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    const email = btn.getAttribute('data-email');
-                    const pass = btn.getAttribute('data-pass');
-                    const pwd = prompt(`Введите пароль для ${email}:`);
-                    if (pwd === pass) {
-                        await signOut(auth);
-                        await signInWithEmailAndPassword(auth, email, pass);
-                    } else {
-                        alert('Неверный пароль');
-                    }
-                });
-            });
-        }
 
         window.register = () => {
             const email = emailInput.value;
@@ -99,7 +61,6 @@
             createUserWithEmailAndPassword(auth, email, password)
                 .then((userCredential) => {
                     set(ref(db, `users/${userCredential.user.uid}`), { email, username });
-                    saveAccount(email, password, username);
                     alert("Регистрация успешна!");
                 })
                 .catch((error) => alert("Ошибка: " + error.message));
@@ -109,7 +70,6 @@
             const email = emailInput.value;
             const password = passwordInput.value;
             signInWithEmailAndPassword(auth, email, password)
-                .then(() => saveAccount(email, password, email.split('@')[0]))
                 .catch((error) => alert("Ошибка входа: " + error.message));
         };
 
@@ -142,11 +102,9 @@
         };
 
         window.searchFriends = () => updateFriendListDisplay();
-        window.showSettings = () => { settingsDiv.style.display = 'block'; chatDiv.style.display = 'none'; loginDiv.style.display = 'none'; accountsDiv.style.display = 'none'; };
-        window.showAccounts = () => { accountsDiv.style.display = 'block'; settingsDiv.style.display = 'none'; chatDiv.style.display = 'none'; loginDiv.style.display = 'none'; updateAccountsList(); };
-        window.showChat = () => { chatDiv.style.display = 'block'; settingsDiv.style.display = 'none'; accountsDiv.style.display = 'none'; loginDiv.style.display = 'none'; };
+        window.showSettings = () => { settingsDiv.style.display = 'block'; chatDiv.style.display = 'none'; loginDiv.style.display = 'none'; };
+        window.showChat = () => { chatDiv.style.display = 'block'; settingsDiv.style.display = 'none'; loginDiv.style.display = 'none'; };
         window.closeSettings = () => showChat();
-        window.closeAccounts = () => showChat();
 
         window.applySettings = () => {
             const theme = settingsTheme.value;
@@ -226,7 +184,6 @@
                 loginDiv.style.display = 'block';
                 chatDiv.style.display = 'none';
                 settingsDiv.style.display = 'none';
-                accountsDiv.style.display = 'none';
                 logoutBtn.style.display = 'none';
                 currentFriend = null;
                 allUsers = {};
@@ -511,7 +468,7 @@
             font-weight: 500;
         }
         
-        .login-container, .settings-container, .accounts-container {
+        .login-container, .settings-container {
             background: #fff;
             border-radius: 24px;
             padding: 40px;
@@ -523,8 +480,7 @@
         }
         
         body.theme-dark .login-container,
-        body.theme-dark .settings-container,
-        body.theme-dark .accounts-container {
+        body.theme-dark .settings-container {
             background: #2d2d2d;
             border: 1px solid #444;
         }
@@ -552,8 +508,7 @@
         }
         
         .login-container button,
-        .settings-container button,
-        .accounts-container button {
+        .settings-container button {
             width: 100%;
             background: #4a90e2;
             border: none;
@@ -594,31 +549,6 @@
             margin-top: 10px !important;
         }
         
-        .account-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px;
-            background: #f5f5f5;
-            border-radius: 12px;
-            margin: 8px 0;
-            border: 1px solid #e0e0e0;
-        }
-        
-        body.theme-dark .account-item { background: #3d3d3d; border-color: #555; }
-        
-        .account-item span { color: #333; }
-        body.theme-dark .account-item span { color: #ddd; }
-        
-        .switch-account-btn {
-            background: #4a90e2 !important;
-            color: white !important;
-            padding: 6px 12px !important;
-            width: auto !important;
-            margin: 0 !important;
-            font-size: 12px !important;
-        }
-        
         .empty-state {
             color: #999;
             text-align: center;
@@ -635,7 +565,6 @@
             </div>
             <div style="display: flex; gap: 15px; align-items: center;">
                 <div class="menu-buttons">
-                    <button class="menu-btn" onclick="showAccounts()">👥 Аккаунты</button>
                     <button class="menu-btn" onclick="showSettings()">⚙️ Настройки</button>
                 </div>
                 <span class="current-user" id="currentUser"></span>
@@ -706,12 +635,6 @@
             <button onclick="applySettings()">💾 Сохранить</button>
             <button class="dnd-btn" id="dndStatus" onclick="toggleDnd()">🔔 Не беспокоить (выкл)</button>
             <button class="back-btn" onclick="closeSettings()">← Назад</button>
-        </div>
-
-        <div id="accountsDiv" style="display: none;" class="accounts-container">
-            <h2>👥 Мои аккаунты</h2>
-            <div id="accountsList" class="accounts-list"></div>
-            <button class="back-btn" onclick="closeAccounts()">← Назад</button>
         </div>
     </div>
 </body>
