@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MAX FRIEND</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='80' fill='%234a90e2'>👥</text></svg>">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
@@ -262,7 +262,6 @@
         
         body.theme-dark { background: #1a1a1a; }
         
-        /* Оконтовка всех окон */
         .container {
             max-width: 1300px;
             margin: 0 auto;
@@ -300,6 +299,15 @@
             color: #333;
             cursor: pointer;
             letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo img {
+            width: 28px;
+            height: 28px;
+            margin-right: 10px;
+            border-radius: 6px;
         }
         
         .logo span { color: #4a90e2; }
@@ -622,7 +630,10 @@
 <body class="theme-light">
     <div class="container">
         <div class="header">
-            <div class="logo" onclick="showChat()">MAX<span>FRIEND</span></div>
+            <div class="logo" onclick="showChat()">
+                <img src="favicon.ico" alt="icon">
+                MAX<span>FRIEND</span>
+            </div>
             <div style="display: flex; gap: 15px; align-items: center;">
                 <div class="menu-buttons">
                     <button class="menu-btn" onclick="showAccounts()">👥 Аккаунты</button>
