@@ -42,11 +42,16 @@
         const logoutBtn = document.getElementById('logoutBtn');
         const chatFriendName = document.getElementById('chatFriendName');
         const sendBtn = document.getElementById('sendBtn');
+        
+        // Настройки элементы
         const settingsTheme = document.getElementById('settingsTheme');
         const settingsNotifications = document.getElementById('settingsNotifications');
         const settingsSound = document.getElementById('settingsSound');
         const settingsFontSize = document.getElementById('settingsFontSize');
         const settingsLanguage = document.getElementById('settingsLanguage');
+        const settingsMessageSound = document.getElementById('settingsMessageSound');
+        const settingsOnlineStatus = document.getElementById('settingsOnlineStatus');
+        const settingsReadReceipts = document.getElementById('settingsReadReceipts');
 
         let currentUserEmail = null;
         let currentUsername = null;
@@ -54,7 +59,6 @@
         let allUsers = {};
         let dndMode = localStorage.getItem('maxfriend_dnd') === 'true';
 
-        // Генерация email из ника (для Firebase)
         function generateEmail(nickname) {
             return nickname.toLowerCase().replace(/[^a-z0-9]/g, '') + '@maxfriend.local';
         }
@@ -64,7 +68,6 @@
             const password = passwordInput.value;
             if (!nickname) { alert("Введите никнейм"); return; }
             if (password.length < 6) { alert("Пароль должен быть не менее 6 символов"); return; }
-            
             const email = generateEmail(nickname);
             createUserWithEmailAndPassword(auth, email, password)
                 .then((userCredential) => {
@@ -78,7 +81,6 @@
             const nickname = loginNicknameInput.value.trim();
             const password = loginPasswordInput.value;
             if (!nickname) { alert("Введите никнейм"); return; }
-            
             const email = generateEmail(nickname);
             signInWithEmailAndPassword(auth, email, password)
                 .catch((error) => alert("Ошибка входа: " + error.message));
@@ -88,7 +90,7 @@
         
         window.sendMessage = () => {
             if (!currentFriend) { alert("Выберите друга"); return; }
-            if (dndMode) { alert("🔕 Режим 'Не беспокоить' включен. Сообщение не отправлено."); return; }
+            if (dndMode) { alert("🔕 Режим 'Не беспокоить' включен"); return; }
             const text = messageInput.value.trim();
             if (!text) return;
             const chatId = [currentUserEmail, currentFriend.email].sort().join('_');
@@ -123,12 +125,18 @@
             const sound = settingsSound.checked;
             const fontSize = settingsFontSize.value;
             const language = settingsLanguage.value;
+            const messageSound = settingsMessageSound.checked;
+            const onlineStatus = settingsOnlineStatus.checked;
+            const readReceipts = settingsReadReceipts.checked;
             
             localStorage.setItem('maxfriend_theme', theme);
             localStorage.setItem('maxfriend_notifications', notifications);
             localStorage.setItem('maxfriend_sound', sound);
             localStorage.setItem('maxfriend_fontsize', fontSize);
             localStorage.setItem('maxfriend_language', language);
+            localStorage.setItem('maxfriend_message_sound', messageSound);
+            localStorage.setItem('maxfriend_online_status', onlineStatus);
+            localStorage.setItem('maxfriend_read_receipts', readReceipts);
             
             document.body.className = theme === 'light' ? 'theme-light' : 'theme-dark';
             document.body.style.fontSize = fontSize === 'small' ? '12px' : fontSize === 'large' ? '16px' : '14px';
@@ -140,7 +148,7 @@
             dndMode = !dndMode;
             localStorage.setItem('maxfriend_dnd', dndMode);
             const dndBtn = document.getElementById('dndStatus');
-            if (dndBtn) dndBtn.textContent = dndMode ? '🔕 Не беспокоить (вкл)' : '🔔 Не беспокоить (выкл)';
+            if (dndBtn) dndBtn.innerHTML = dndMode ? '<span>🔕</span> Не беспокоить (вкл)' : '<span>🔔</span> Не беспокоить (выкл)';
             alert(dndMode ? 'Режим "Не беспокоить" включен' : 'Режим "Не беспокоить" выключен');
         };
 
@@ -214,6 +222,9 @@
         if (savedFontSize) document.body.style.fontSize = savedFontSize === 'small' ? '12px' : savedFontSize === 'large' ? '16px' : '14px';
         
         dndMode = localStorage.getItem('maxfriend_dnd') === 'true';
+        if (document.getElementById('dndStatus')) {
+            document.getElementById('dndStatus').innerHTML = dndMode ? '<span>🔕</span> Не беспокоить (вкл)' : '<span>🔔</span> Не беспокоить (выкл)';
+        }
     </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -223,7 +234,7 @@
             background: #e8eef2;
             padding: 20px;
             min-height: 100vh;
-            transition: background 0.3s;
+            transition: background 0.3s, font-size 0.2s;
             font-size: 14px;
         }
         
@@ -284,20 +295,20 @@
         
         .menu-btn {
             background: #f0f0f0;
-            border: 1px solid #ddd;
+            border: none;
             color: #333;
-            padding: 6px 14px;
-            border-radius: 20px;
+            padding: 8px 18px;
+            border-radius: 24px;
             cursor: pointer;
             font-size: 13px;
+            font-weight: 500;
             transition: all 0.2s;
         }
         
-        .menu-btn:hover { background: #e0e0e0; border-color: #ccc; }
+        .menu-btn:hover { background: #e4e4e4; transform: scale(0.98); }
         
         body.theme-dark .menu-btn {
             background: #3d3d3d;
-            border-color: #555;
             color: #e0e0e0;
         }
         
@@ -307,16 +318,23 @@
             background: #ff4d4d;
             border: none;
             color: white;
-            padding: 6px 14px;
-            border-radius: 20px;
+            padding: 8px 18px;
+            border-radius: 24px;
             cursor: pointer;
             font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
         }
+        
+        .btn-logout:hover { background: #ff3333; transform: scale(0.98); }
         
         .current-user {
             color: #4a90e2;
             font-size: 13px;
             font-weight: 500;
+            background: rgba(74,144,226,0.1);
+            padding: 6px 14px;
+            border-radius: 20px;
         }
         
         .main-content { display: flex; background: #fff; min-height: 600px; }
@@ -342,10 +360,13 @@
             width: 100%;
             background: #fff;
             border: 1px solid #ddd;
-            padding: 8px 12px;
-            border-radius: 12px;
+            padding: 10px 14px;
+            border-radius: 24px;
             font-size: 14px;
+            transition: all 0.2s;
         }
+        
+        .friends-header input:focus { outline: none; border-color: #4a90e2; }
         
         body.theme-dark .friends-header input {
             background: #3d3d3d;
@@ -367,6 +388,8 @@
             transition: all 0.2s;
         }
         
+        .friend-item:hover { transform: translateX(2px); border-color: #4a90e2; }
+        
         body.theme-dark .friend-item {
             background: #3d3d3d;
             border-color: #555;
@@ -377,15 +400,18 @@
         
         .friend-item button {
             background: #e8e8e8;
-            border: 1px solid #ddd;
+            border: none;
             color: #4a90e2;
-            padding: 4px 12px;
-            border-radius: 16px;
+            padding: 6px 14px;
+            border-radius: 20px;
             cursor: pointer;
             font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
         }
         
-        body.theme-dark .friend-item button { background: #555; border-color: #666; }
+        .friend-item button:hover { background: #d4d4d4; transform: scale(0.95); }
+        body.theme-dark .friend-item button { background: #555; color: #4ec9b0; }
         
         .chat-panel { flex: 1; display: flex; flex-direction: column; }
         
@@ -420,9 +446,8 @@
             background: #4a90e2;
             color: white;
             border-radius: 18px 18px 4px 18px;
-            padding: 8px 14px;
+            padding: 10px 16px;
             max-width: 70%;
-            border: 1px solid #3a80d2;
         }
         
         .message-received {
@@ -430,12 +455,11 @@
             background: #f0f0f0;
             color: #333;
             border-radius: 18px 18px 18px 4px;
-            padding: 8px 14px;
+            padding: 10px 16px;
             max-width: 70%;
-            border: 1px solid #e0e0e0;
         }
         
-        body.theme-dark .message-received { background: #3d3d3d; color: #ddd; border-color: #555; }
+        body.theme-dark .message-received { background: #3d3d3d; color: #ddd; }
         
         .message-sender { font-size: 11px; opacity: 0.8; margin-bottom: 4px; }
         .message-text { font-size: 14px; word-break: break-word; }
@@ -461,7 +485,10 @@
             padding: 12px 16px;
             border-radius: 28px;
             font-size: 14px;
+            transition: all 0.2s;
         }
+        
+        .input-area input:focus { outline: none; border-color: #4a90e2; background: #fff; }
         
         body.theme-dark .input-area input {
             background: #3d3d3d;
@@ -473,107 +500,218 @@
             background: #4a90e2;
             border: none;
             color: white;
-            padding: 0 24px;
+            padding: 0 28px;
             border-radius: 28px;
             cursor: pointer;
             font-weight: 500;
+            transition: all 0.2s;
         }
+        
+        .input-area button:hover { background: #3a80d2; transform: scale(0.98); }
         
         .login-container, .settings-container {
             background: #fff;
-            border-radius: 24px;
+            border-radius: 28px;
             padding: 40px;
-            max-width: 450px;
+            max-width: 480px;
             margin: 40px auto;
             text-align: center;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            border: 1px solid #e0e0e0;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
         }
         
         body.theme-dark .login-container,
         body.theme-dark .settings-container {
             background: #2d2d2d;
-            border: 1px solid #444;
         }
         
-        h2 { color: #333; margin-bottom: 24px; font-weight: 600; }
+        h2 { color: #333; margin-bottom: 24px; font-weight: 600; font-size: 24px; }
         body.theme-dark h2 { color: #fff; }
         
-        .login-container input,
-        .settings-container select,
-        .settings-container input {
+        .login-container input {
             width: 100%;
             background: #f5f5f5;
-            border: 1px solid #ddd;
-            padding: 12px;
-            margin: 8px 0;
-            border-radius: 12px;
-            font-size: 14px;
+            border: 1px solid #e0e0e0;
+            padding: 14px;
+            margin: 10px 0;
+            border-radius: 16px;
+            font-size: 15px;
+            transition: all 0.2s;
         }
         
-        body.theme-dark .login-container input,
-        body.theme-dark .settings-container select {
+        .login-container input:focus { outline: none; border-color: #4a90e2; background: #fff; }
+        
+        body.theme-dark .login-container input {
             background: #3d3d3d;
             border-color: #555;
             color: #fff;
         }
         
-        .login-container button,
-        .settings-container button {
+        .login-container button {
             width: 100%;
             background: #4a90e2;
             border: none;
             color: white;
-            padding: 12px;
-            margin-top: 12px;
-            border-radius: 12px;
+            padding: 14px;
+            margin-top: 16px;
+            border-radius: 16px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 500;
+            transition: all 0.2s;
         }
         
-        .back-btn {
-            background: #e0e0e0 !important;
-            color: #333 !important;
-            border: 1px solid #ccc !important;
+        .login-container button:hover { background: #3a80d2; transform: scale(0.98); }
+        
+        .login-row {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid #e0e0e0;
         }
         
-        body.theme-dark .back-btn {
-            background: #555 !important;
-            color: #ddd !important;
-            border: 1px solid #666 !important;
+        body.theme-dark .login-row { border-top-color: #444; }
+        
+        /* Нормальные настройки - карточки */
+        .settings-card {
+            background: #f8f9fa;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: left;
         }
+        
+        body.theme-dark .settings-card {
+            background: #252525;
+        }
+        
+        .settings-card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #4a90e2;
+            display: inline-block;
+        }
+        
+        body.theme-dark .settings-card-title { color: #fff; }
         
         .setting-item {
-            text-align: left;
-            margin: 20px 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid #e5e5e5;
         }
         
-        .setting-item label { color: #333; font-weight: 500; }
-        body.theme-dark .setting-item label { color: #ddd; }
+        .setting-item:last-child { border-bottom: none; }
         
-        .dnd-btn {
-            background: #ff4d4d !important;
-            margin-top: 10px !important;
+        body.theme-dark .setting-item { border-bottom-color: #3d3d3d; }
+        
+        .setting-label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
+        
+        .setting-label span:first-child {
+            font-weight: 500;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .setting-label span:last-child {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        body.theme-dark .setting-label span:first-child { color: #ddd; }
+        body.theme-dark .setting-label span:last-child { color: #888; }
+        
+        select, .settings-select {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 8px 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        body.theme-dark select {
+            background: #3d3d3d;
+            border-color: #555;
+            color: #fff;
+        }
+        
+        /* Toggle switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
+        }
+        
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.3s;
+            border-radius: 34px;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .toggle-slider { background-color: #4a90e2; }
+        input:checked + .toggle-slider:before { transform: translateX(24px); }
+        
+        .dnd-btn-settings {
+            width: 100%;
+            background: #ff4d4d;
+            border: none;
+            color: white;
+            padding: 14px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.2s;
+        }
+        
+        .dnd-btn-settings:hover { background: #ff3333; transform: scale(0.98); }
+        
+        .back-btn {
+            width: 100%;
+            background: #e0e0e0 !important;
+            color: #333 !important;
+            margin-top: 20px;
+        }
+        
+        body.theme-dark .back-btn { background: #555 !important; color: #ddd !important; }
         
         .empty-state {
             color: #999;
             text-align: center;
             padding: 20px;
-        }
-        
-        .login-row {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #e0e0e0;
-        }
-        
-        body.theme-dark .login-row {
-            border-top-color: #444;
         }
     </style>
 </head>
@@ -628,38 +766,105 @@
 
         <div id="settingsDiv" style="display: none;" class="settings-container">
             <h2>⚙️ Настройки</h2>
-            <div class="setting-item">
-                <label>🌓 Тема:</label>
-                <select id="settingsTheme">
-                    <option value="light">☀️ Светлая</option>
-                    <option value="dark">🌙 Тёмная</option>
-                </select>
+            
+            <div class="settings-card">
+                <div class="settings-card-title">Внешний вид</div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span>🌓 Тема оформления</span>
+                        <span>Светлая или тёмная тема</span>
+                    </div>
+                    <select id="settingsTheme">
+                        <option value="light">☀️ Светлая</option>
+                        <option value="dark">🌙 Тёмная</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span>📏 Размер шрифта</span>
+                        <span>Маленький / Средний / Большой</span>
+                    </div>
+                    <select id="settingsFontSize">
+                        <option value="small">Маленький</option>
+                        <option value="medium" selected>Средний</option>
+                        <option value="large">Большой</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span>🌐 Язык интерфейса</span>
+                        <span>Русский или English</span>
+                    </div>
+                    <select id="settingsLanguage">
+                        <option value="ru">Русский</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
             </div>
-            <div class="setting-item">
-                <label>🔔 Уведомления:</label>
-                <input type="checkbox" id="settingsNotifications" checked>
+
+            <div class="settings-card">
+                <div class="settings-card-title">Уведомления</div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span>🔔 Push-уведомления</span>
+                        <span>Получать уведомления о сообщениях</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="settingsNotifications" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span>🔊 Звук сообщений</span>
+                        <span>Воспроизводить звук при новых сообщениях</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="settingsSound" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span>🎵 Звук отправки</span>
+                        <span>Звук при отправке сообщения</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="settingsMessageSound" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
             </div>
-            <div class="setting-item">
-                <label>🔊 Звук сообщений:</label>
-                <input type="checkbox" id="settingsSound" checked>
+
+            <div class="settings-card">
+                <div class="settings-card-title">Конфиденциальность</div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span>🟢 Показывать онлайн-статус</span>
+                        <span>Другие увидят, когда вы онлайн</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="settingsOnlineStatus" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span>👁️ Читать отчёты</span>
+                        <span>Показывать, прочитано ли сообщение</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="settingsReadReceipts" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
             </div>
-            <div class="setting-item">
-                <label>📏 Размер шрифта:</label>
-                <select id="settingsFontSize">
-                    <option value="small">Маленький</option>
-                    <option value="medium" selected>Средний</option>
-                    <option value="large">Большой</option>
-                </select>
-            </div>
-            <div class="setting-item">
-                <label>🌐 Язык:</label>
-                <select id="settingsLanguage">
-                    <option value="ru">Русский</option>
-                    <option value="en">English</option>
-                </select>
-            </div>
-            <button onclick="applySettings()">💾 Сохранить</button>
-            <button class="dnd-btn" id="dndStatus" onclick="toggleDnd()">🔔 Не беспокоить (выкл)</button>
+
+            <button class="dnd-btn-settings" id="dndStatus" onclick="toggleDnd()">
+                <span>🔔</span> Не беспокоить (выкл)
+            </button>
+            
+            <button onclick="applySettings()" style="background: #4a90e2; margin-top: 15px;">💾 Сохранить все настройки</button>
             <button class="back-btn" onclick="closeSettings()">← Назад</button>
         </div>
     </div>
